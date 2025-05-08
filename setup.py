@@ -53,24 +53,30 @@ def detect_local_sm_architectures():
 
     Copied from https://github.com/pytorch/pytorch/blob/v2.2.2/torch/utils/cpp_extension.py#L1962-L1976
     """
-    arch_list = []
 
-    for i in range(torch.cuda.device_count()):
-        capability = torch.cuda.get_device_capability(i)
-        supported_sm = [int(arch.split('_')[1])
-                        for arch in torch.cuda.get_arch_list() if 'sm_' in arch]
-        max_supported_sm = max((sm // 10, sm % 10) for sm in supported_sm)
-        # Capability of the device may be higher than what's supported by the user's
-        # NVCC, causing compilation error. User's NVCC is expected to match the one
-        # used to build pytorch, so we use the maximum supported capability of pytorch
-        # to clamp the capability.
-        capability = min(max_supported_sm, capability)
-        arch = f'{capability[0]}.{capability[1]}'
-        if arch not in arch_list:
-            arch_list.append(arch)
+    _arch_list = os.environ.get('TORCH_CUDA_ARCH_LIST', None)
 
-    arch_list = sorted(arch_list)
-    arch_list[-1] += '+PTX'
+    if not _arch_list:
+        arch_list = []
+        for i in range(torch.cuda.device_count()):
+            capability = torch.cuda.get_device_capability(i)
+            supported_sm = [int(arch.split('_')[1])
+                            for arch in torch.cuda.get_arch_list() if 'sm_' in arch]
+            max_supported_sm = max((sm // 10, sm % 10) for sm in supported_sm)
+            # Capability of the device may be higher than what's supported by the user's
+            # NVCC, causing compilation error. User's NVCC is expected to match the one
+            # used to build pytorch, so we use the maximum supported capability of pytorch
+            # to clamp the capability.
+            capability = min(max_supported_sm, capability)
+            arch = f'{capability[0]}.{capability[1]}'
+            if arch not in arch_list:
+                arch_list.append(arch)
+        arch_list = sorted(arch_list)
+        arch_list[-1] += '+PTX'
+    else:
+        _arch_list = _arch_list.replace(' ', ';')
+        arch_list = _arch_list.split(';')
+
     return arch_list
 
 
